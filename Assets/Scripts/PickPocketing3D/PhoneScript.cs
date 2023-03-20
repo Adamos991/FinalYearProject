@@ -16,7 +16,7 @@ public class PhoneScript : MonoBehaviour
     private IEnumerator PhoneSequence()
     {
         // Start vibrating and playing the sound
-        Handheld.Vibrate();
+        //Handheld.Vibrate();
         audioSource.clip = phoneSound;
         audioSource.Play();
 
