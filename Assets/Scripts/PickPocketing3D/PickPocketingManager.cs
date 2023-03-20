@@ -8,22 +8,31 @@ public class PickPocketingManager : MonoBehaviour
     public List<GameObject> pocketItems;
     public GameObject targetItem;
     public float disturbanceThreshold = 0.1f;
-    
+    public GameObject player;
+    public GameObject enemies;
+    //public PickPocketingTarget puzzle;
+
     public void ActivatePickPocketing()
     {
         playerCamera.SetActive(false);
+        player.SetActive(false);
+        enemies.SetActive(false);
         pickPocketingCamera.SetActive(true);
+        //puzzle.SetActive(true);
     }
 
     public void DeactivatePickPocketing()
     {
         playerCamera.SetActive(true);
         pickPocketingCamera.SetActive(false);
+        player.SetActive(true);
+        enemies.SetActive(true);
+        //puzzle.SetActive(false);
     }
 
     void Start()
     {
-        //DeactivatePickPocketing();
+        DeactivatePickPocketing();
     }
 
     public void FailPickPocketing()
@@ -36,7 +45,7 @@ public class PickPocketingManager : MonoBehaviour
     public void SuccessfulPickPocketing()
     {
         Debug.Log("Pick-pocketing successful!");
-        //DeactivatePickPocketing();
+        DeactivatePickPocketing();
         // Trigger relevant event or action (e.g., add the stolen item to the player's inventory)
     }
 }

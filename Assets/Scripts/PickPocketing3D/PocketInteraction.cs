@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class LockInteraction : MonoBehaviour
+public class PocketInteraction : MonoBehaviour
 {
-    public LockPickingManager lockPickingManager;
+    public PickPocketingManager pickPocketingManager;
     private bool isPlayerInsideTrigger = false;
 
     private void OnTriggerEnter(Collider other)
@@ -27,7 +27,7 @@ public class LockInteraction : MonoBehaviour
     {
         if (isPlayerInsideTrigger && Input.GetKeyDown(KeyCode.E))
         {
-            lockPickingManager.ActivateLockPicking();
+            pickPocketingManager.ActivatePickPocketing();
             // Perform your desired action here
         }
     }

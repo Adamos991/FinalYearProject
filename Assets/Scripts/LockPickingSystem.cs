@@ -28,6 +28,7 @@ public class LockPickingSystem : MonoBehaviour
     private Quaternion initialLockRotation;
     private int clickCounter = 0;
     private int maxClicks = 7;
+    public GameObject door;
 
 
 
@@ -166,6 +167,7 @@ public class LockPickingSystem : MonoBehaviour
     {
         Debug.Log("Lock picked successfully!");
         lockPickingManager.DeactivateLockPicking();
+        door.SetActive(false);
         // Trigger relevant event or action (e.g., opening the door)
     }
 

@@ -5,7 +5,7 @@ public class PickPocketingTarget : MonoBehaviour
     public PickPocketingManager pickPocketingManager;
     public Collider pocketCollider;
     private bool isDragging = false;
-    public Camera camera;
+    public Camera pocketcamera;
     public LayerMask phoneLayer; 
     private bool phoneDetected = false;
     public Collider restrictedCollider;
@@ -21,7 +21,7 @@ public class PickPocketingTarget : MonoBehaviour
     if (Input.GetMouseButtonDown(0))
     {
         RaycastHit hit;
-        Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = pocketcamera.ScreenPointToRay(Input.mousePosition);
 
         if (Physics.Raycast(ray, out hit, 100.0f))
         {
@@ -41,7 +41,7 @@ public class PickPocketingTarget : MonoBehaviour
 
     if (isDragging && !phoneDetected)
     {
-        Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = pocketcamera.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, phoneLayer))
