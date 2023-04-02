@@ -8,7 +8,7 @@ public class LockPickingSystem : MonoBehaviour
     public float pickSpeed = 0.5f;
     public float sweetSpotRange = 0.1f;
     public float forceFactor = 1.5f;
-    public int maxAttempts = 5;
+    public int maxAttempts = 7;
 
     private float sweetSpot;
     private float pickPosition;

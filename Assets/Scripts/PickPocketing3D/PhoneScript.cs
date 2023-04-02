@@ -9,7 +9,7 @@ public class PhoneScript : MonoBehaviour
 
     public void ActivatePhone()
     {
-        Debug.Log("blooop");
+        //Debug.Log("blooop");
         StartCoroutine(PhoneSequence());
     }
 
@@ -19,7 +19,7 @@ public class PhoneScript : MonoBehaviour
         //Handheld.Vibrate();
         audioSource.clip = phoneSound;
         audioSource.Play();
-
+        gameObject.GetComponent<Rigidbody>().useGravity = true;
         // Wait for the vibration duration
         yield return new WaitForSeconds(vibrationDuration);
 

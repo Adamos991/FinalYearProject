@@ -21,11 +21,11 @@ public class LockPickingManager : MonoBehaviour
 
     public void DeactivateLockPicking()
     {
-        playerCamera.SetActive(true);
         lockPickingCamera.SetActive(false);
+        //playerCamera.SetActive(true);
         lockPickingSystem.enabled = false;
-        player.SetActive(true);
-        enemies.SetActive(true);
+        //player.SetActive(true);
+        //enemies.SetActive(true);
     }
 
     void Start()

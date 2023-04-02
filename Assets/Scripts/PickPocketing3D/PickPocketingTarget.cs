@@ -11,7 +11,7 @@ public class PickPocketingTarget : MonoBehaviour
     public Collider restrictedCollider;
     private Rigidbody rb;
 
-    void Start() {
+    void Awake() {
         rb = GetComponent<Rigidbody>();
         //rb.isKinematic = true;
     }
@@ -47,6 +47,7 @@ public class PickPocketingTarget : MonoBehaviour
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, phoneLayer))
         {
             PhoneScript phoneScript = hit.collider.GetComponent<PhoneScript>();
+
             if (phoneScript)
             {
                 phoneScript.ActivatePhone();
