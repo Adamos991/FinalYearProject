@@ -4,6 +4,15 @@ using UnityEngine.Events;
 using DG.Tweening;
 using Cinemachine;
 using FixedSizeQueueNamespace;
+using Accord.MachineLearning;
+//using Accord.Math;
+using Accord.Statistics.Filters;
+using System.Collections.Generic;
+using UnityEngine.InputSystem;
+using Accord.MachineLearning.DecisionTrees;
+using Accord.MachineLearning.DecisionTrees.Learning;
+using System.Data;
+using System.Linq;
 
 public class CombatScript : MonoBehaviour
 {
@@ -12,7 +21,7 @@ public class CombatScript : MonoBehaviour
     private MovementInput movementInput;
     private Animator animator;
     private CinemachineImpulseSource impulseSource;
-    public FixedSizeQueue attackTypes;
+    
     [Header("Target")]
     private EnemyScript lockedTarget;
 
@@ -44,18 +53,59 @@ public class CombatScript : MonoBehaviour
     int animationCount = 0;
     string[] attacks;
 
+    private List<int[]> attackHistory;
+    private DecisionTree tree;
+    public DecisionTreeClassifier DTC;
+    private Codification codebook;
+    private int combatSequenceCounter;
+    public int trainingThreshold = 2; // Change this value to set the number of combat sequences before training the classifier
+    private bool spaceHeld = false;
+    public bool trained = false;
+
+    public List<int> currentAttackSequence;
+
     void Start()
     {
         enemyManager = FindObjectOfType<EnemyManager>();
+        //Debug.Log(enemyManager);
         animator = GetComponent<Animator>();
         enemyDetection = GetComponentInChildren<EnemyDetection>();
         movementInput = GetComponent<MovementInput>();
         impulseSource = GetComponentInChildren<CinemachineImpulseSource>();
-        attackTypes = new FixedSizeQueue(50);
-    }
+        attackHistory = new List<int[]>();
+        currentAttackSequence = new List<int>();
+        combatSequenceCounter = 0;
+        var inputActions = GetComponent<PlayerInput>().actions;
+        inputActions["Space"].started += ctx => OnSpaceStarted();
+        inputActions["Space"].canceled += ctx => OnSpaceEnded();
+        attacks = new string[] { "AirKick", "AirKick2", "AirPunch", "AirKick3" };
+        // Create a DataTable for the attack labels
+        DataTable attackTable = new DataTable("Attacks");
+        attackTable.Columns.Add("attack", typeof(string));
 
-    //This function gets called whenever the player inputs the punch action
-    void AttackCheck()
+        // Add the attack labels to the DataTable
+        foreach (string attackL in attacks)
+        {
+            attackTable.Rows.Add(attackL);
+        }
+
+        // Create and initialize the codebook
+        codebook = new Codification(attackTable);
+    }
+    public void begin(string tag) {
+        enemyManager = GameObject.FindWithTag(tag).GetComponent<EnemyManager>();
+        //Debug.Log(enemyManager);
+        //enemyManager = FindObjectOfType<EnemyManager>();
+        //Debug.Log(enemyManager);
+        //animator = GetComponent<Animator>();
+        //enemyDetection = GetComponentInChildren<EnemyDetection>();
+        //movementInput = GetComponent<MovementInput>();
+        //impulseSource = GetComponentInChildren<CinemachineImpulseSource>();
+        //attackHistory = new List<int[]>();
+        currentAttackSequence = new List<int>();
+        combatSequenceCounter = 0;
+    }
+    void AttackCheck(string attackLabel)
     {
         if (isAttackingEnemy)
             return;
@@ -65,7 +115,7 @@ public class CombatScript : MonoBehaviour
         {
             if (enemyManager.AliveEnemyCount() == 0)
             {
-                Attack(null, 0);
+                Attack(null, 0, attackLabel);
                 return;
             }
             else
@@ -83,10 +133,26 @@ public class CombatScript : MonoBehaviour
             lockedTarget = enemyManager.RandomEnemy();
 
         //AttackTarget
-        Attack(lockedTarget, TargetDistance(lockedTarget));
+        Attack(lockedTarget, TargetDistance(lockedTarget), attackLabel);
     }
 
-    public void Attack(EnemyScript target, float distance)
+    public void SwitchEnemyManager(EnemyManager newEnemyManager)
+    {
+        enemyManager = newEnemyManager;
+    }
+
+    public void TrainClassifier()
+    {
+        // List<int[]> inputData = new List<int[]>();
+        // List<int> outputData = new List<int>();
+        Debug.Log("training");
+        tree = DTC.TrainDecisionTree(attackHistory.ToArray(), 4);
+        Debug.Log("trained");
+        trained = true;
+    }
+
+    //@override
+    public void Attack(EnemyScript target, float distance, string attackLabel)
     {
         //Types of attack animation
         attacks = new string[] { "AirKick", "AirKick2", "AirPunch", "AirKick3" };
@@ -95,28 +161,39 @@ public class CombatScript : MonoBehaviour
         if (target == null)
         {
             AttackType("GroundPunch", .2f, null, 0);
-            attackTypes.Enqueue(0);
             return;
         }
 
-        if (distance < 15)
+        if (distance < 10)
         {
             animationCount = (int)Mathf.Repeat((float)animationCount + 1, (float)attacks.Length);
-            string attackString = isLastHit() ? attacks[Random.Range(0, attacks.Length)] : attacks[animationCount];
-            if(attackString.Equals(attacks[2]))
+            //string attackString = isLastHit() ? attacks[Random.Range(0, attacks.Length)] : attacks[animationCount];
+            int attackCode = codebook.Transform("attack", attackLabel);
+            if (!trained || currentAttackSequence.Count < 4)
             {
-                attackTypes.Enqueue(1);
-            } else
-            {
-                attackTypes.Enqueue(0);
+                AttackType(attackLabel, attackCooldown, target, .65f);
             }
-            AttackType(attackString, attackCooldown, target, .65f);
+            else
+            {
+                foreach(int x in currentAttackSequence) {
+                    Debug.Log(x);
+                }
+                if (PerformAttack(currentAttackSequence, attackCode))
+                {
+                    AttackType(attackLabel, attackCooldown, target, .65f);
+                }
+                else
+                {
+                    currentAttackSequence.Add(attackCode);
+                }
+            }
+            //attackHistory.Add(codebook.Transform("attack", attackLabel));
         }
         else
         {
             lockedTarget = null;
             AttackType("GroundPunch", .2f, null, 0);
-            attackTypes.Enqueue(1);
+            
         }
 
         //Change impulse
@@ -124,21 +201,61 @@ public class CombatScript : MonoBehaviour
 
     }
 
+    private bool PerformAttack(List<int> currentAttacks, int attackCode)
+    {
+        int windowSize = 4; // The window size used during training
+        int predictionWindowSize = 4; // The number of actions you want to use for prediction
+
+        // Take the last 'predictionWindowSize' elements from 'currentAttackSequence'
+        List<int> inputSample = currentAttacks.Skip(currentAttacks.Count - predictionWindowSize).Take(predictionWindowSize).ToList();
+
+        // Pad the input sample with -1 to match the window size
+        while (inputSample.Count < windowSize)
+        {
+            inputSample.Insert(0, -1);
+        }
+
+        int predictedAttack = DTC.PredictAttack(tree, inputSample);
+
+        if (predictedAttack == attackCode)
+        {
+            // The prediction was correct; the enemy blocks the attack
+            Debug.Log("Attack blocked!");
+            return false; // Attack is not a hit
+        }
+        else
+        {
+            // The prediction was incorrect; the attack is a hit
+            Debug.Log("Attack hit!");
+            return true; // Attack is a hit
+        }
+    }
+
     void AttackType(string attackTrigger, float cooldown, EnemyScript target, float movementDuration)
     {
         animator.SetTrigger(attackTrigger);
+        if(attackTrigger != "GroundPunch") {
+            currentAttackSequence.Add(codebook.Transform("attack", attackTrigger));
+        }
 
         if (attackCoroutine != null)
             StopCoroutine(attackCoroutine);
         attackCoroutine = StartCoroutine(AttackCoroutine(isLastHit() ? 1.5f : cooldown));
 
         //Check if last enemy
-        if (isLastHit())
+        if (isLastHit()) {
+            //Debug.Log("lasthit");
+            // foreach(var x in currentAttackSequence) {
+            //     Debug.Log(x);
+            // }
             StartCoroutine(FinalBlowCoroutine());
-
-        if (target == null)
+            int[] temp = currentAttackSequence.ToArray();
+            attackHistory.Add(temp);
+            currentAttackSequence = new List<int>();
+        }
+        if (target == null) {
             return;
-
+        }
         target.StopMoving();
         MoveTorwardsTarget(target, movementDuration);
 
@@ -163,6 +280,8 @@ public class CombatScript : MonoBehaviour
             lastHitCamera.SetActive(false);
             Time.timeScale = 1f;
         }
+        
+        
     }
 
     void MoveTorwardsTarget(EnemyScript target, float duration)
@@ -179,31 +298,33 @@ public class CombatScript : MonoBehaviour
             return;
 
         lockedTarget = ClosestCounterEnemy();
-        OnCounterAttack.Invoke(lockedTarget);
+        //OnCounterAttack.Invoke(lockedTarget);
+        if(TargetDistance(lockedTarget) < 4) {
+            OnCounterAttack.Invoke(lockedTarget);
+            if (TargetDistance(lockedTarget) > 2)
+            {
+                Attack(lockedTarget, TargetDistance(lockedTarget), null);
+                return;
+            }
 
-        if (TargetDistance(lockedTarget) > 2)
-        {
-            Attack(lockedTarget, TargetDistance(lockedTarget));
-            return;
-        }
+            float duration = .2f;
+            animator.SetTrigger("Dodge");
+            transform.DOLookAt(lockedTarget.transform.position, .2f);
+            transform.DOMove(transform.position + lockedTarget.transform.forward, duration);
 
-        float duration = .2f;
-        animator.SetTrigger("Dodge");
-        transform.DOLookAt(lockedTarget.transform.position, .2f);
-        transform.DOMove(transform.position + lockedTarget.transform.forward, duration);
+            if (counterCoroutine != null)
+                StopCoroutine(counterCoroutine);
+            counterCoroutine = StartCoroutine(CounterCoroutine(duration));
 
-        if (counterCoroutine != null)
-            StopCoroutine(counterCoroutine);
-        counterCoroutine = StartCoroutine(CounterCoroutine(duration));
+            IEnumerator CounterCoroutine(float duration)
+            {
+                isCountering = true;
+                movementInput.enabled = false;
+                yield return new WaitForSeconds(duration);
+                Attack(lockedTarget, TargetDistance(lockedTarget), null);
+                isCountering = false;
 
-        IEnumerator CounterCoroutine(float duration)
-        {
-            isCountering = true;
-            movementInput.enabled = false;
-            yield return new WaitForSeconds(duration);
-            Attack(lockedTarget, TargetDistance(lockedTarget));
-            isCountering = false;
-
+            }
         }
     }
 
@@ -212,7 +333,7 @@ public class CombatScript : MonoBehaviour
         return Vector3.Distance(transform.position, target.transform.position);
     }
 
-    public Vector3 TargetOffset(Transform target)
+    public UnityEngine.Vector3 TargetOffset(Transform target)
     {
         Vector3 position;
         position = target.position;
@@ -281,21 +402,52 @@ public class CombatScript : MonoBehaviour
         if (lockedTarget == null)
             return false;
 
+        //Debug.Log(enemyManager.AliveEnemyCount() == 1 && lockedTarget.health <= 1);
         return enemyManager.AliveEnemyCount() == 1 && lockedTarget.health <= 1;
     }
 
     #region Input
 
-    private void OnCounter()
-    {
-        CounterCheck();
-    }
+    // private void OnCounter()
+    // {
+    //     CounterCheck();
+    // }
 
     private void OnAttack()
     {
-        AttackCheck();
+        if (spaceHeld)
+        {
+            // Handle space + left click attack
+            AttackCheck("AirPunch");
+        }
+        else
+        {
+            AttackCheck("AirKick");
+        }
     }
 
+    private void OnAttackRight() {
+        if (spaceHeld)
+        {
+            // Handle space + left click attack
+            AttackCheck("AirKick3");
+        }
+        else
+        {
+            AttackCheck("AirKick2");
+        }
+    }
+
+    private void OnSpaceStarted()
+    {
+        spaceHeld = true;
+    }
+
+    private void OnSpaceEnded()
+    {
+        spaceHeld = false;
+    }
+    
     #endregion
 
 }

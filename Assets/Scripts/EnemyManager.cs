@@ -27,6 +27,28 @@ public class EnemyManager : MonoBehaviour
         StartAI();
     }
 
+    public void begin(string tag) {
+        enemies = GetComponentsInChildren<EnemyScript>();
+
+        allEnemies = new EnemyStruct[enemies.Length];
+
+        for (int i = 0; i < allEnemies.Length; i++)
+        {
+            allEnemies[i].enemyScript = enemies[i];
+            enemies[i].begin(tag);
+            allEnemies[i].enemyAvailability = true;
+        }
+        //transform.position = new Vector3(154.6461f, -5.699432f, 80.95973f);
+        StartAI();
+    }
+
+    public void EngageInCombat(bool engage){
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            enemies[i].EngageInCombatYuh(engage);
+        }
+    }
+
     public void StartAI()
     {
         AI_Loop_Coroutine = StartCoroutine(AI_Loop(null));

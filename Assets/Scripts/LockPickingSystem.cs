@@ -29,6 +29,7 @@ public class LockPickingSystem : MonoBehaviour
     private int clickCounter = 0;
     private int maxClicks = 7;
     public GameObject door;
+    private bool isLockPickingActive = false;
 
 
 
@@ -66,6 +67,7 @@ public class LockPickingSystem : MonoBehaviour
         pickPosition = 0.0f;
         attempts = maxAttempts;
         previousAngle = 0.0f;
+        clickCounter = 0;
         // Calculate the initial distance between the lock and lockpick
         initialDistance = Vector3.Distance(lockObject.transform.position, lockpickObject.transform.position);
         currentLockRotation = 0.0f;
@@ -74,8 +76,21 @@ public class LockPickingSystem : MonoBehaviour
         initialLockRotation = lockObject.transform.rotation;    
     }
 
+    public bool ActivateLockPicking()
+    {
+        sweetSpot = Random.Range(0.0f, 1.0f);
+        isLockPickingActive = true;
+        return isLockPickingActive;
+    }
+
     void Update()
     {
+        if (!isLockPickingActive)
+        {
+            clickCounter = 0;
+            return;
+        }
+
         // Move the lockpick based on user mouse movement
         if (!Input.GetMouseButton(0))
         {
@@ -165,15 +180,20 @@ public class LockPickingSystem : MonoBehaviour
 
     private void LockPicked()
     {
-        Debug.Log("Lock picked successfully!");
+        //Debug.Log("Lock picked successfully!");
+        lockPickingManager.setSuccess(true);
         lockPickingManager.DeactivateLockPicking();
+        isLockPickingActive = false;
+        
         door.SetActive(false);
         // Trigger relevant event or action (e.g., opening the door)
     }
 
     private void LockPickFailed()
     {
-        Debug.Log("Lock picking failed!");
+        //Debug.Log("Lock picking failed!");
+        isLockPickingActive = false;
+        lockPickingManager.setSuccess(false);
         lockPickingManager.DeactivateLockPicking();
         // Exit the lock-picking mode and apply any penalties (e.g., lockpick durability loss)
     }

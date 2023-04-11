@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
+using UnityEngine.AI;
 
 public class EnemyScript : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class EnemyScript : MonoBehaviour
     private EnemyManager enemyManager;
     private EnemyDetection enemyDetection;
     private CharacterController characterController;
+    private Vector3 previousPosition;
 
     [Header("Stats")]
     public int health = 3;
@@ -24,9 +26,14 @@ public class EnemyScript : MonoBehaviour
     [SerializeField] private bool isLockedTarget;
     [SerializeField] private bool isStunned;
     [SerializeField] private bool isWaiting = true;
+    [SerializeField] private bool isInCombat = true;
 
     [Header("Polish")]
     //[SerializeField] private ParticleSystem counterParticle;
+
+    [Header("Gravity")]
+    public float gravity = -9.81f;
+    private Vector3 velocity;
 
     private Coroutine PrepareAttackCoroutine;
     private Coroutine RetreatCoroutine;
@@ -38,8 +45,21 @@ public class EnemyScript : MonoBehaviour
     public UnityEvent<EnemyScript> OnStopMoving;
     public UnityEvent<EnemyScript> OnRetreat;
 
-    void Start()
+    [Header("Line of Sight")]
+    public float lineOfSightDistance = 10f;
+    public LayerMask lineOfSightLayerMask;
+
+    private NavMeshAgent navMeshAgent;
+    private bool hasLineOfSight;
+
+    [Header("Line of Sight")]
+    public LayerMask lineOfSightMask;
+
+    void Awake()
     {
+        lineOfSightMask = LayerMask.GetMask("LineOfSightMask");
+        navMeshAgent = GetComponent<NavMeshAgent>();
+        navMeshAgent.enabled = false; // We will enable the NavMeshAgent only when needed
         enemyManager = GetComponentInParent<EnemyManager>();
 
         animator = GetComponent<Animator>();
@@ -53,13 +73,48 @@ public class EnemyScript : MonoBehaviour
         playerCombat.OnTrajectory.AddListener((x) => OnPlayerTrajectory(x));
 
         MovementCoroutine = StartCoroutine(EnemyMovement());
-
+        EngageInCombatYuh(true);
     }
+
+    public void begin(string tag) {
+        //playerCombat.OnTrajectory.AddListener((x) => OnPlayerTrajectory(x));
+        playerCombat.begin(tag);
+        // playerCombat.OnHit.AddListener((x) => OnPlayerHit(x));
+        // playerCombat.OnCounterAttack.AddListener((x) => OnPlayerCounter(x));
+        // playerCombat.OnTrajectory.AddListener((x) => OnPlayerTrajectory(x));
+        //MovementCoroutine = StartCoroutine(EnemyMovement());
+        EngageInCombatYuh(true);
+    }
+
+    private bool HasLineOfSight()
+{
+    float distance = 10f;
+    Vector3 startPosition = transform.position + new Vector3(0, 0, 0); // Adding Y-axis offset
+    Vector3 direction = playerCombat.transform.position - (transform.position + new Vector3(0, -0.5f, 0));
+    RaycastHit hit;
+
+    if (Physics.Raycast(startPosition, direction, out hit, distance, lineOfSightMask))
+    {
+        //Debug.DrawRay(startPosition, direction * hit.distance, Color.yellow);
+       // Debug.Log("Hit: " + hit.collider.gameObject.name);
+
+        if (hit.collider.gameObject.CompareTag("Player"))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        //Debug.DrawRay(startPosition, direction * distance, Color.red);
+    }
+
+    return false;
+}
 
     IEnumerator EnemyMovement()
     {
         //Waits until the enemy is not assigned to no action like attacking or retreating
-        yield return new WaitUntil(() => isWaiting == true);
+        yield return new WaitUntil(() => isWaiting == true && isInCombat);
 
         int randomChance = Random.Range(0, 2);
 
@@ -79,13 +134,80 @@ public class EnemyScript : MonoBehaviour
         MovementCoroutine = StartCoroutine(EnemyMovement());
     }
 
+    private void UpdateCombatStatus()
+    {
+        //Debug.Log(hasLineOfSight);
+        hasLineOfSight = HasLineOfSight();
+        float distanceToPlayer = Vector3.Distance(transform.position, playerCombat.transform.position);
+
+        if (!isInCombat && hasLineOfSight && distanceToPlayer <= lineOfSightDistance)
+        {
+            EngageInCombatYuh(true);
+            navMeshAgent.enabled = false;
+            //Debug.Log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        }
+        else if (isInCombat && (!hasLineOfSight || distanceToPlayer > lineOfSightDistance))
+        {
+            EngageInCombatYuh(false);
+            navMeshAgent.enabled = true;
+            navMeshAgent.SetDestination(playerCombat.transform.position);
+        }
+    }
+
     void Update()
     {
-        //Constantly look at player
-        transform.LookAt(new Vector3(playerCombat.transform.position.x, transform.position.y, playerCombat.transform.position.z));
+        //UpdateCombatStatus();
 
-        //Only moves if the direction is set
-        MoveEnemy(moveDirection);
+        if (isInCombat)
+        {
+            // Constantly look at player
+            transform.LookAt(new Vector3(playerCombat.transform.position.x, transform.position.y, playerCombat.transform.position.z));
+
+            // Only moves if the direction is set
+            MoveEnemy(moveDirection);
+
+            // Apply gravity
+            if (characterController.isGrounded)
+            {
+                velocity.y = 0;
+            }
+            else
+            {
+                velocity.y += gravity * Time.deltaTime;
+            }
+            characterController.Move(velocity * Time.deltaTime);
+        } else
+        {
+            // Update Animator's InputMagnitude based on the NavMeshAgent's velocity
+            float inputMagnitude = navMeshAgent.velocity.magnitude / navMeshAgent.speed;
+            animator.SetFloat("InputMagnitude", inputMagnitude, .2f, Time.deltaTime);
+        }
+    }
+
+    public void EngageInCombatYuh(bool engage)
+    {
+        isInCombat = engage;
+
+        if (engage)
+        {
+            // Start enemy movement if the enemy is engaging in combat
+            if (MovementCoroutine == null)
+            {
+                MovementCoroutine = StartCoroutine(EnemyMovement());
+            }
+        }
+        else
+        {
+            // Stop enemy movement and reset moveDirection if the enemy is disengaging from combat
+            StopMoving();
+            moveDirection = Vector3.zero;
+
+            if (MovementCoroutine != null)
+            {
+                StopCoroutine(MovementCoroutine);
+                MovementCoroutine = null;
+            }
+        }
     }
 
     //Listened event from Player Animation
@@ -216,8 +338,11 @@ public class EnemyScript : MonoBehaviour
         if (direction == -Vector3.forward)
             moveSpeed = 2;
 
+        Vector3 currentVelocity = (transform.position - previousPosition) / Time.deltaTime;
+        previousPosition = transform.position;
+
         //Set Animator values
-        animator.SetFloat("InputMagnitude", (characterController.velocity.normalized.magnitude * direction.z) / (5 / moveSpeed), .2f, Time.deltaTime);
+        animator.SetFloat("InputMagnitude", Mathf.Abs(currentVelocity.z) / moveSpeed, .2f, Time.deltaTime);
         animator.SetBool("Strafe", (direction == Vector3.right || direction == Vector3.left));
         animator.SetFloat("StrafeDirection", direction.normalized.x, .2f, Time.deltaTime);
 

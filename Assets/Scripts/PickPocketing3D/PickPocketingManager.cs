@@ -24,8 +24,8 @@ public class PickPocketingManager : MonoBehaviour
     public void DeactivatePickPocketing()
     {
         pickPocketingCamera.SetActive(false);
-        //playerCamera.SetActive(true);
-        //player.SetActive(true);
+        playerCamera.SetActive(true);
+        player.SetActive(true);
         //enemies.SetActive(true);
         //puzzle.SetActive(false);
     }

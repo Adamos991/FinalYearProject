@@ -61,19 +61,30 @@ public class CursorController : MonoBehaviour
                 if (movementDirection == Vector2.left || movementDirection == Vector2.right)
                 {
                     if(gridLineRect.width > gridLineRect.height) {
-                        newPosition += movementDirection * 1f;
-                        if(gridLineRect.Contains(newPosition)) {
+                        
+                        if(gridLineRect.Contains(newPosition + movementDirection * 1f)) {
+                            newPosition += movementDirection * 1f;
                             moved = true;
+                        }
+                        if(Mathf.Abs(newPosition.y - gridLine.anchoredPosition.y) >= 0.5 && moved) {
+                            Vector2 targetPosition = new Vector2(newPosition.x, gridLine.anchoredPosition.y);
+                            Vector2 direction = targetPosition - newPosition;
+                            direction = direction.normalized;
+                            newPosition += direction;
+                            //rectTransform.anchoredPosition = newPosition;
                         }
                     } else {
                         for(int i = 6; i < 12; i++) {
-                            Debug.Log(newPosition.y + ", " + gridLines[i].anchoredPosition.y);
-                            if(Mathf.Abs(newPosition.y - gridLines[i].anchoredPosition.y) <= 10) {
+                            //Debug.Log(newPosition.y + ", " + gridLines[i].anchoredPosition.y);
+                            if(Mathf.Abs(newPosition.y - gridLines[i].anchoredPosition.y) <= 15) {
                                 Vector2 targetPosition = new Vector2(newPosition.x, gridLines[i].anchoredPosition.y);
                                 Vector2 direction = targetPosition - newPosition;
                                 direction = direction.normalized;
                                 newPosition += direction * Time.deltaTime;
-                                i--;
+                                rectTransform.anchoredPosition = newPosition;
+                                if(Mathf.Abs(newPosition.y - gridLines[i].anchoredPosition.y) > 0.5 && movementDirection != Vector2.zero) {
+                                     i--;
+                                }
                             }
                         }
                         continue;
@@ -82,18 +93,31 @@ public class CursorController : MonoBehaviour
                 else if (movementDirection == Vector2.up || movementDirection == Vector2.down)
                 {
                     if(gridLineRect.height > gridLineRect.width) {
-                        newPosition += movementDirection * 1f;
-                        if(gridLineRect.Contains(newPosition)) {
+                        
+                        if(gridLineRect.Contains(newPosition + movementDirection * 1f)) {
+                            newPosition += movementDirection * 1f;
                             moved = true;
+                        }
+                        if(Mathf.Abs(newPosition.x - gridLine.anchoredPosition.x) >= 0.5 && moved) {
+                            Vector2 targetPosition = new Vector2(gridLine.anchoredPosition.x, newPosition.y);
+                            Vector2 direction = targetPosition - newPosition;
+                            direction = direction.normalized;
+                            newPosition += direction;
+                            //rectTransform.anchoredPosition = newPosition;
                         }
                     } else {
                         for(int i = 0; i < 6; i++) {
-                            if(Mathf.Abs(newPosition.x - gridLines[i].anchoredPosition.x) <= 10) {
+                            
+                            if(Mathf.Abs(newPosition.x - gridLines[i].anchoredPosition.x) <= 15) {
+                                //Debug.Log(cursorCenter.x + ", " + gridLines[i].anchoredPosition.x);
                                 Vector2 targetPosition = new Vector2(gridLines[i].anchoredPosition.x, newPosition.y);
                                 Vector2 direction = targetPosition - newPosition;
                                 direction = direction.normalized;
                                 newPosition += direction * Time.deltaTime;
-                                i--;
+                                rectTransform.anchoredPosition = newPosition;
+                                 if(Mathf.Abs(newPosition.x - gridLines[i].anchoredPosition.x) > 0.5 && movementDirection != Vector2.zero) {
+                                     i--;
+                                }
                             }
                         }
                         continue;

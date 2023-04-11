@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Enemy
   - Barrier
+  - EnemyManagerTwo
+  - EnemyManager
   layers:
   - Default
   - TransparentFX
@@ -14,14 +16,14 @@ TagManager:
   - Water
   - UI
   - Barrier
-  - 
+  - Obstacle
   - PostProcessing
   - Not in Reflection
   - Enemy
   - Phone
-  - 
-  - 
-  - 
+  - LineOfSightMask
+  - EnemyManagerTwo
+  - EnemyManager
   - 
   - 
   - 

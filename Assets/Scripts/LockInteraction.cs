@@ -6,6 +6,7 @@ public class LockInteraction : MonoBehaviour
 {
     public LockPickingManager lockPickingManager;
     private bool isPlayerInsideTrigger = false;
+    //public bool isCombatStarter = false;
 
     private void OnTriggerEnter(Collider other)
     {
