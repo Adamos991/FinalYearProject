@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
 using UnityEngine.AI;
+using System.Threading;
 
 public class EnemyScript : MonoBehaviour
 {
@@ -13,6 +14,7 @@ public class EnemyScript : MonoBehaviour
     private EnemyDetection enemyDetection;
     private CharacterController characterController;
     private Vector3 previousPosition;
+    private static int coroutineStarted = 0;
 
     [Header("Stats")]
     public int health = 3;
@@ -76,13 +78,28 @@ public class EnemyScript : MonoBehaviour
         EngageInCombatYuh(true);
     }
 
+    private void OnEnable() {
+        if (Interlocked.CompareExchange(ref coroutineStarted, 1, 0) == 0)
+        {
+            enemyManager.StartAI();
+        }
+
+        MovementCoroutine = StartCoroutine(EnemyMovement());
+        EngageInCombatYuh(true);
+    }
+
+    private void OnDisable()
+    {
+        Interlocked.Exchange(ref coroutineStarted, 0);
+    }
+
     public void begin(string tag) {
         //playerCombat.OnTrajectory.AddListener((x) => OnPlayerTrajectory(x));
         playerCombat.begin(tag);
         // playerCombat.OnHit.AddListener((x) => OnPlayerHit(x));
         // playerCombat.OnCounterAttack.AddListener((x) => OnPlayerCounter(x));
         // playerCombat.OnTrajectory.AddListener((x) => OnPlayerTrajectory(x));
-        //MovementCoroutine = StartCoroutine(EnemyMovement());
+        MovementCoroutine = StartCoroutine(EnemyMovement());
         EngageInCombatYuh(true);
     }
 
@@ -151,14 +168,20 @@ public class EnemyScript : MonoBehaviour
             EngageInCombatYuh(false);
             navMeshAgent.enabled = true;
             navMeshAgent.SetDestination(playerCombat.transform.position);
+            //Debug.Log("huh");
         }
     }
 
     void Update()
     {
         //UpdateCombatStatus();
-
-        if (isInCombat)
+        if (Vector3.Distance(transform.position, playerCombat.transform.position) > 10f)
+        {
+            transform.LookAt(new Vector3(playerCombat.transform.position.x, transform.position.y, playerCombat.transform.position.z));
+            Vector3 direction = (playerCombat.transform.position - transform.position).normalized;
+            characterController.Move(direction * moveSpeed * Time.deltaTime * 2);
+            animator.SetFloat("InputMagnitude", 1f, .2f, Time.deltaTime);
+        } else if (isInCombat)
         {
             // Constantly look at player
             transform.LookAt(new Vector3(playerCombat.transform.position.x, transform.position.y, playerCombat.transform.position.z));

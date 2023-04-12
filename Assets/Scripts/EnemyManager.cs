@@ -1,12 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading;
 
 public class EnemyManager : MonoBehaviour
 {
     private EnemyScript[] enemies;
     public EnemyStruct[] allEnemies;
     private List<int> enemyIndexes;
+    private EnemyScript attackingEnemy = null;
+    private static int guardCombat = 0;
+    
 
     [Header("Main AI Loop - Settings")]
     private Coroutine AI_Loop_Coroutine;
@@ -17,7 +21,6 @@ public class EnemyManager : MonoBehaviour
         enemies = GetComponentsInChildren<EnemyScript>();
 
         allEnemies = new EnemyStruct[enemies.Length];
-
         for (int i = 0; i < allEnemies.Length; i++)
         {
             allEnemies[i].enemyScript = enemies[i];
@@ -39,6 +42,7 @@ public class EnemyManager : MonoBehaviour
             allEnemies[i].enemyAvailability = true;
         }
         //transform.position = new Vector3(154.6461f, -5.699432f, 80.95973f);
+        StopCoroutine(AI_Loop_Coroutine);
         StartAI();
     }
 
@@ -51,11 +55,21 @@ public class EnemyManager : MonoBehaviour
 
     public void StartAI()
     {
+        
         AI_Loop_Coroutine = StartCoroutine(AI_Loop(null));
+    }
+
+    private void OnEnable() {
+        if(AI_Loop_Coroutine != null) { 
+            StopCoroutine(AI_Loop_Coroutine);
+            StartAI();
+        }
     }
 
     IEnumerator AI_Loop(EnemyScript enemy)
     {
+        //Debug.Log("bloop");
+        //Debug.Log(AliveEnemyCount());
         if (AliveEnemyCount() == 0)
         {
             StopCoroutine(AI_Loop(null));
@@ -64,7 +78,7 @@ public class EnemyManager : MonoBehaviour
 
         yield return new WaitForSeconds(Random.Range(.5f,1.5f));
 
-        EnemyScript attackingEnemy = RandomEnemyExcludingOne(enemy);
+        attackingEnemy = RandomEnemyExcludingOne(enemy);
 
         if (attackingEnemy == null)
             attackingEnemy = RandomEnemy();
@@ -176,7 +190,21 @@ public class EnemyManager : MonoBehaviour
             FindObjectOfType<EnemyDetection>().SetCurrentTarget(null);
     }
 
-
+    public void initiateGuardCombat(){
+        if (Interlocked.CompareExchange(ref guardCombat, 1, 0) == 0)
+        {
+            Guard[] Guards = GetComponentsInChildren<Guard>();
+            foreach(Guard guard in Guards) {
+                guard.lightsOff();
+                guard.enabled = false;
+                //guard.GetComponentInParent<>()
+            }
+            EnemyScript[] enemies = GetComponentsInChildren<EnemyScript>();
+            foreach(EnemyScript enemy in enemies) {
+                enemy.enabled = true;
+            }
+        }
+    }
 }
 
 [System.Serializable]

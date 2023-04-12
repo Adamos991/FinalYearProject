@@ -7,7 +7,8 @@ public class EnemyDetection : MonoBehaviour
     private MovementInput movementInput;
     private CombatScript combatScript;
 
-    public LayerMask layerMask;
+    public LayerMask enemyLayerMask;
+    public LayerMask obstacleLayerMask;
 
     [SerializeField] Vector3 inputDirection;
     [SerializeField] private EnemyScript currentTarget;
@@ -35,12 +36,17 @@ public class EnemyDetection : MonoBehaviour
         inputDirection = forward * movementInput.moveAxis.y + right * movementInput.moveAxis.x;
         inputDirection = inputDirection.normalized;
 
-        RaycastHit info;
-
-        if (Physics.SphereCast(transform.position, 3f, inputDirection, out info, 10,layerMask))
+        // Check for obstacles in the way
+        if (Physics.Raycast(transform.position, inputDirection, out RaycastHit obstacleInfo, Mathf.Infinity, obstacleLayerMask))
         {
-            if(info.collider.transform.GetComponent<EnemyScript>().IsAttackable())
-                currentTarget = info.collider.transform.GetComponent<EnemyScript>();
+            currentTarget = null; // Reset current target if there's an obstacle in the way
+        }
+        else if (Physics.SphereCast(transform.position, 3f, inputDirection, out RaycastHit enemyInfo, 10, enemyLayerMask))
+        {
+            if (enemyInfo.transform.GetComponent<EnemyScript>().IsAttackable())
+            {
+                currentTarget = enemyInfo.transform.GetComponent<EnemyScript>();
+            }
         }
     }
 
@@ -64,7 +70,9 @@ public class EnemyDetection : MonoBehaviour
         Gizmos.color = Color.black;
         Gizmos.DrawRay(transform.position, inputDirection);
         Gizmos.DrawWireSphere(transform.position, 1);
-        if(CurrentTarget() != null)
+        if (CurrentTarget() != null)
+        {
             Gizmos.DrawSphere(CurrentTarget().transform.position, .5f);
+        }
     }
 }

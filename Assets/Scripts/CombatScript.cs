@@ -94,16 +94,8 @@ public class CombatScript : MonoBehaviour
     }
     public void begin(string tag) {
         enemyManager = GameObject.FindWithTag(tag).GetComponent<EnemyManager>();
-        //Debug.Log(enemyManager);
-        //enemyManager = FindObjectOfType<EnemyManager>();
-        //Debug.Log(enemyManager);
-        //animator = GetComponent<Animator>();
-        //enemyDetection = GetComponentInChildren<EnemyDetection>();
-        //movementInput = GetComponent<MovementInput>();
-        //impulseSource = GetComponentInChildren<CinemachineImpulseSource>();
-        //attackHistory = new List<int[]>();
         currentAttackSequence = new List<int>();
-        combatSequenceCounter = 0;
+        //combatSequenceCounter = 0;
     }
     void AttackCheck(string attackLabel)
     {
@@ -129,9 +121,10 @@ public class CombatScript : MonoBehaviour
             lockedTarget = enemyDetection.CurrentTarget();
 
         //Extra check to see if the locked target was set
-        if(lockedTarget == null)
+        if(lockedTarget == null) {
             lockedTarget = enemyManager.RandomEnemy();
-
+        }
+        
         //AttackTarget
         Attack(lockedTarget, TargetDistance(lockedTarget), attackLabel);
     }
