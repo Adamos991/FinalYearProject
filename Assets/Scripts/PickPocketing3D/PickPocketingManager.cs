@@ -6,6 +6,7 @@ public class PickPocketingManager : MonoBehaviour
 {
     public GameObject playerCamera;
     public GameObject pickPocketingCamera;
+    public GameObject trigger;
     public Guard guard;
     public List<GameObject> pocketItems;
     public GameObject targetItem;
@@ -21,7 +22,8 @@ public class PickPocketingManager : MonoBehaviour
         player.SetActive(false);
         //enemies.SetActive(false);
         pickPocketingCamera.SetActive(true);
-        
+        trigger.SetActive(false);
+        guard.stopGuard();
         //guard.Freeze(true);
         //puzzle.SetActive(true);
     }
@@ -31,6 +33,8 @@ public class PickPocketingManager : MonoBehaviour
         pickPocketingCamera.SetActive(false);
         playerCamera.SetActive(true);
         player.SetActive(true);
+        trigger.SetActive(false);
+        guard.startGuard();
         //guard.Freeze(false);
         //enemies.SetActive(true);
         //puzzle.SetActive(false);
@@ -42,7 +46,10 @@ public class PickPocketingManager : MonoBehaviour
 
     void Start()
     {
-        DeactivatePickPocketing();
+        pickPocketingCamera.SetActive(false);
+        playerCamera.SetActive(true);
+        player.SetActive(true);
+        trigger.SetActive(true);
     }
 
     public void FailPickPocketing()

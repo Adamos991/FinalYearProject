@@ -6,6 +6,7 @@ using System.Threading;
 public class Guard : MonoBehaviour
 {
     public GameObject pickPocketTrigger;
+    public GameObject enemyManager;
     private Animator animator;
     public Transform pathHolder;
     public float speed = 4.5f;
@@ -23,6 +24,9 @@ public class Guard : MonoBehaviour
 
     private float viewAngle;
     Transform player;
+    public CombatScript combat;
+    //private IEnumerator coroutine;
+    private bool guardCanMove = true;
 
     void Start() {
         animator = GetComponent<Animator>();
@@ -35,7 +39,7 @@ public class Guard : MonoBehaviour
             waypoints[i] = pathHolder.GetChild(i).position;
             waypoints[i] = new Vector3(waypoints[i].x, transform.position.y, waypoints[i].z);
         }
-
+        //coroutine = FollowPath(waypoints);
         StartCoroutine(FollowPath(waypoints));
     }
     public void lightsOff() {
@@ -56,7 +60,12 @@ public class Guard : MonoBehaviour
             initiateCombat();
         }
     }
-
+    public void startGuard() {
+        guardCanMove = true;
+    }
+    public void stopGuard() {
+        guardCanMove = false;
+    }
     private void OnDrawGizmos() {
         Vector3 startPosition = pathHolder.GetChild(0).position;
         Vector3 previousPosition = startPosition;
@@ -86,24 +95,26 @@ public class Guard : MonoBehaviour
         transform.LookAt(targetWaypoint);
 
         while(true) {
-            if(combatStarted == 1) {
-                break;
+            if(guardCanMove) {
+                if(combatStarted == 1) {
+                    break;
+                }
+                transform.position = Vector3.MoveTowards(transform.position, targetWaypoint, speed * Time.deltaTime);
+                //animator.SetFloat("InputMagnitude", speed / 5, 0.2f, Time.deltaTime);
+                if(Vector3.Distance(transform.position, targetWaypoint) < 0.1f) {
+                    //Debug.Log("ahhhhhhh");
+                    animator.SetFloat("InputMagnitude", 0f, 0f, Time.deltaTime);
+                    targetWaypointIndex = (targetWaypointIndex + 1) % waypoints.Length;
+                    targetWaypoint = waypoints[targetWaypointIndex];
+                    yield return new WaitForSeconds(waitTime);
+                    yield return StartCoroutine(TurnToFace(targetWaypoint));
+                    
+                } else {
+                    animator.SetFloat("InputMagnitude", speed / 5, 0.2f, Time.deltaTime);
+                }
             }
-            transform.position = Vector3.MoveTowards(transform.position, targetWaypoint, speed * Time.deltaTime);
-            //animator.SetFloat("InputMagnitude", speed / 5, 0.2f, Time.deltaTime);
-            if(Vector3.Distance(transform.position, targetWaypoint) < 0.1f) {
-                //Debug.Log("ahhhhhhh");
-                animator.SetFloat("InputMagnitude", 0f, 0f, Time.deltaTime);
-                targetWaypointIndex = (targetWaypointIndex + 1) % waypoints.Length;
-                targetWaypoint = waypoints[targetWaypointIndex];
-                yield return new WaitForSeconds(waitTime);
-                yield return StartCoroutine(TurnToFace(targetWaypoint));
-                
-            } else {
-                animator.SetFloat("InputMagnitude", speed / 5, 0.2f, Time.deltaTime);
-            }
-
-            yield return null;
+                yield return null;
+            //}
         }
     }
 
@@ -133,7 +144,10 @@ public class Guard : MonoBehaviour
 
     public void initiateCombat() {        
         if(Interlocked.CompareExchange(ref combatStarted, 1, 0) == 0) {
+            //Debug.Log("aaaaahhh");
+            enemyManager.SetActive(false);
             pickPocketTrigger.SetActive(false);
+            combat.begin("GuardManager");
             GetComponentInParent<EnemyManager>().initiateGuardCombat();
             StartCoroutine(MoveUpwardsCoroutine(20, 5));
         }

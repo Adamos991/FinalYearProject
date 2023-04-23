@@ -83,9 +83,14 @@ public class EnemyScript : MonoBehaviour
         {
             enemyManager.StartAI();
         }
-
+        int LayerEnemy = LayerMask.NameToLayer("Enemy");
+        gameObject.layer = LayerEnemy;
         MovementCoroutine = StartCoroutine(EnemyMovement());
         EngageInCombatYuh(true);
+    }
+
+    public Animator getEnemyAnimator() {
+        return animator;
     }
 
     private void OnDisable()
@@ -244,17 +249,20 @@ public class EnemyScript : MonoBehaviour
             enemyDetection.SetCurrentTarget(null);
             isLockedTarget = false;
             OnDamage.Invoke(this);
+            if(playerCombat.getLanded()) {
+                health--;
 
-            health--;
-
-            if (health <= 0)
-            {
-                Death();
-                return;
+                if (health <= 0)
+                {
+                    Death();
+                    return;
+                }
+                
+                animator.SetTrigger("Hit");
+                transform.DOMove(transform.position - (transform.forward / 2), .3f).SetDelay(.1f);
+            } else {
+                animator.SetTrigger("Block");
             }
-
-            animator.SetTrigger("Hit");
-            transform.DOMove(transform.position - (transform.forward / 2), .3f).SetDelay(.1f);
 
             StopMoving();
         }

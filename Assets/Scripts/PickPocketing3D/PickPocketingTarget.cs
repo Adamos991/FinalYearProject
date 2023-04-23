@@ -7,7 +7,7 @@ public class PickPocketingTarget : MonoBehaviour
     private bool isDragging = false;
     public Camera pocketcamera;
     public LayerMask phoneLayer; 
-    private bool phoneDetected = false;
+    //private bool phoneDetected = false;
     public Collider restrictedCollider;
     private Rigidbody rb;
     private bool winnable = true;
@@ -49,20 +49,9 @@ public class PickPocketingTarget : MonoBehaviour
         Ray ray = pocketcamera.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity, phoneLayer))
-        {
-            PhoneScript phoneScript = hit.collider.GetComponent<PhoneScript>();
-
-            if (phoneScript)
-            {
-                //phoneScript.ActivatePhone();
-                phoneDetected = true;
-            }
-        }
-        else
-        {
-            UpdateDragPosition(ray);
-        }
+        
+        UpdateDragPosition(ray);
+        
 
         if (pocketCollider.bounds.Contains(transform.position) && winnable)
         {

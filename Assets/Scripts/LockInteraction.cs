@@ -29,6 +29,7 @@ public class LockInteraction : MonoBehaviour
         if (isPlayerInsideTrigger && Input.GetKeyDown(KeyCode.E))
         {
             lockPickingManager.ActivateLockPicking();
+            //gameObject.SetActive(false);
             // Perform your desired action here
         }
     }

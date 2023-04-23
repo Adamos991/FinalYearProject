@@ -42,7 +42,7 @@ public class EnemyManager : MonoBehaviour
             allEnemies[i].enemyAvailability = true;
         }
         //transform.position = new Vector3(154.6461f, -5.699432f, 80.95973f);
-        StopCoroutine(AI_Loop_Coroutine);
+        //StopCoroutine(AI_Loop_Coroutine);
         StartAI();
     }
 
@@ -60,10 +60,10 @@ public class EnemyManager : MonoBehaviour
     }
 
     private void OnEnable() {
-        if(AI_Loop_Coroutine != null) { 
-            StopCoroutine(AI_Loop_Coroutine);
+        //if(AI_Loop_Coroutine != null) { 
+            //StopCoroutine(AI_Loop_Coroutine);
             StartAI();
-        }
+        //}
     }
 
     IEnumerator AI_Loop(EnemyScript enemy)

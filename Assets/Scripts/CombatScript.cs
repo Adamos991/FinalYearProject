@@ -13,6 +13,7 @@ using Accord.MachineLearning.DecisionTrees;
 using Accord.MachineLearning.DecisionTrees.Learning;
 using System.Data;
 using System.Linq;
+using System.Threading;
 
 public class CombatScript : MonoBehaviour
 {
@@ -34,7 +35,6 @@ public class CombatScript : MonoBehaviour
 
     [Header("Public References")]
     [SerializeField] private Transform punchPosition;
-    //[SerializeField] private ParticleSystemScript punchParticle;
     [SerializeField] private GameObject lastHitCamera;
     [SerializeField] private Transform lastHitFocusObject;
 
@@ -49,6 +49,7 @@ public class CombatScript : MonoBehaviour
     public UnityEvent<EnemyScript> OnTrajectory;
     public UnityEvent<EnemyScript> OnHit;
     public UnityEvent<EnemyScript> OnCounterAttack;
+    public UnityEvent<EnemyScript> OnBlock;
 
     int animationCount = 0;
     string[] attacks;
@@ -58,16 +59,18 @@ public class CombatScript : MonoBehaviour
     public DecisionTreeClassifier DTC;
     private Codification codebook;
     private int combatSequenceCounter;
-    public int trainingThreshold = 2; // Change this value to set the number of combat sequences before training the classifier
     private bool spaceHeld = false;
     public bool trained = false;
+    private bool landed = true;
+    private static int enableGuards = 0;
+    public GameObject guards;
+    public GameObject pocketTrigger;
 
     public List<int> currentAttackSequence;
 
     void Start()
     {
         enemyManager = FindObjectOfType<EnemyManager>();
-        //Debug.Log(enemyManager);
         animator = GetComponent<Animator>();
         enemyDetection = GetComponentInChildren<EnemyDetection>();
         movementInput = GetComponent<MovementInput>();
@@ -82,7 +85,6 @@ public class CombatScript : MonoBehaviour
         // Create a DataTable for the attack labels
         DataTable attackTable = new DataTable("Attacks");
         attackTable.Columns.Add("attack", typeof(string));
-
         // Add the attack labels to the DataTable
         foreach (string attackL in attacks)
         {
@@ -168,19 +170,17 @@ public class CombatScript : MonoBehaviour
             }
             else
             {
-                foreach(int x in currentAttackSequence) {
-                    Debug.Log(x);
-                }
                 if (PerformAttack(currentAttackSequence, attackCode))
                 {
+                    landed = true;
                     AttackType(attackLabel, attackCooldown, target, .65f);
                 }
                 else
                 {
-                    currentAttackSequence.Add(attackCode);
+                    landed = false;
+                    AttackType(attackLabel, attackCooldown, target, .65f);
                 }
             }
-            //attackHistory.Add(codebook.Transform("attack", attackLabel));
         }
         else
         {
@@ -188,10 +188,10 @@ public class CombatScript : MonoBehaviour
             AttackType("GroundPunch", .2f, null, 0);
             
         }
+    }
 
-        //Change impulse
-        impulseSource.m_ImpulseDefinition.m_AmplitudeGain = Mathf.Max(3, 1 * distance);
-
+    public bool getLanded() {
+        return landed;
     }
 
     private bool PerformAttack(List<int> currentAttacks, int attackCode)
@@ -237,10 +237,10 @@ public class CombatScript : MonoBehaviour
 
         //Check if last enemy
         if (isLastHit()) {
-            //Debug.Log("lasthit");
-            // foreach(var x in currentAttackSequence) {
-            //     Debug.Log(x);
-            // }
+            if(Interlocked.CompareExchange(ref enableGuards, 1, 0) == 0) {
+                guards.SetActive(true);
+                pocketTrigger.SetActive(true);
+            }
             StartCoroutine(FinalBlowCoroutine());
             int[] temp = currentAttackSequence.ToArray();
             attackHistory.Add(temp);
@@ -272,8 +272,7 @@ public class CombatScript : MonoBehaviour
             yield return new WaitForSecondsRealtime(2);
             lastHitCamera.SetActive(false);
             Time.timeScale = 1f;
-        }
-        
+        }   
         
     }
 
@@ -282,43 +281,6 @@ public class CombatScript : MonoBehaviour
         OnTrajectory.Invoke(target);
         transform.DOLookAt(target.transform.position, .2f);
         transform.DOMove(TargetOffset(target.transform), duration);
-    }
-
-    void CounterCheck()
-    {
-        //Initial check
-        if (isCountering || isAttackingEnemy || !enemyManager.AnEnemyIsPreparingAttack())
-            return;
-
-        lockedTarget = ClosestCounterEnemy();
-        //OnCounterAttack.Invoke(lockedTarget);
-        if(TargetDistance(lockedTarget) < 4) {
-            OnCounterAttack.Invoke(lockedTarget);
-            if (TargetDistance(lockedTarget) > 2)
-            {
-                Attack(lockedTarget, TargetDistance(lockedTarget), null);
-                return;
-            }
-
-            float duration = .2f;
-            animator.SetTrigger("Dodge");
-            transform.DOLookAt(lockedTarget.transform.position, .2f);
-            transform.DOMove(transform.position + lockedTarget.transform.forward, duration);
-
-            if (counterCoroutine != null)
-                StopCoroutine(counterCoroutine);
-            counterCoroutine = StartCoroutine(CounterCoroutine(duration));
-
-            IEnumerator CounterCoroutine(float duration)
-            {
-                isCountering = true;
-                movementInput.enabled = false;
-                yield return new WaitForSeconds(duration);
-                Attack(lockedTarget, TargetDistance(lockedTarget), null);
-                isCountering = false;
-
-            }
-        }
     }
 
     float TargetDistance(EnemyScript target)
@@ -337,11 +299,8 @@ public class CombatScript : MonoBehaviour
     {
         if (lockedTarget == null || enemyManager.AliveEnemyCount() == 0)
             return;
-
+        
         OnHit.Invoke(lockedTarget);
-
-        //Polish
-        //punchParticle.PlayParticleAtPosition(punchPosition.position);
     }
 
     public void DamageEvent()
@@ -395,16 +354,10 @@ public class CombatScript : MonoBehaviour
         if (lockedTarget == null)
             return false;
 
-        //Debug.Log(enemyManager.AliveEnemyCount() == 1 && lockedTarget.health <= 1);
         return enemyManager.AliveEnemyCount() == 1 && lockedTarget.health <= 1;
     }
 
     #region Input
-
-    // private void OnCounter()
-    // {
-    //     CounterCheck();
-    // }
 
     private void OnAttack()
     {
